@@ -65,6 +65,16 @@ class ReanalyzeResponse(BaseModel):
     delta: ScoreDelta
 
 
+class CompareResult(BaseModel):
+    title: str
+    result: MatchResponse
+
+
+class CompareResponse(BaseModel):
+    comparisons: List[CompareResult]
+    best_fit: str
+
+
 class HistoryEntry(BaseModel):
     id: int
     job_title: str

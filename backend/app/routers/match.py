@@ -2,8 +2,9 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Body
 from app.services.pdf_parser import extract_text_from_pdf
 from app.services.matcher import analyze_match, rewrite_bullet
 from app.services.history import save_result, get_history, get_entry, delete_entry
-from app.models.schemas import MatchResponse, RewriteResponse, HistoryEntry, ReanalyzeRequest, ReanalyzeResponse, ScoreDelta
+from app.models.schemas import MatchResponse, RewriteResponse, HistoryEntry, ReanalyzeRequest, ReanalyzeResponse, ScoreDelta, CompareResult, CompareResponse
 from typing import List
+import asyncio
 
 router = APIRouter()
 
@@ -63,6 +64,41 @@ async def reanalyze(req: ReanalyzeRequest):
         result=new_result,
         delta=ScoreDelta(before=0, after=new_result.overall_score, delta=0),
     )
+
+
+@router.post("/compare", response_model=CompareResponse)
+async def compare_jobs(
+    resume: UploadFile = File(...),
+    job_descriptions: str = Form(...),  # JSON array of {title, jd} objects
+    use_openai: bool = Form(False),
+):
+    import json as _json
+    if resume.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF resumes are supported.")
+    file_bytes = await resume.read()
+    resume_text = extract_text_from_pdf(file_bytes)
+    if not resume_text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from PDF.")
+
+    try:
+        jobs = _json.loads(job_descriptions)
+    except Exception:
+        raise HTTPException(status_code=400, detail="job_descriptions must be a JSON array.")
+
+    if len(jobs) < 2 or len(jobs) > 3:
+        raise HTTPException(status_code=400, detail="Provide 2 or 3 job descriptions.")
+
+    # Run all analyses in parallel
+    tasks = [analyze_match(resume_text, j["jd"], use_openai) for j in jobs]
+    results = await asyncio.gather(*tasks)
+
+    comparison = [
+        CompareResult(title=jobs[i]["title"], result=results[i])
+        for i in range(len(jobs))
+    ]
+    # Sort by overall score descending
+    comparison.sort(key=lambda x: x.result.overall_score, reverse=True)
+    return CompareResponse(comparisons=comparison, best_fit=comparison[0].title)
 
 
 @router.get("/history", response_model=List[HistoryEntry])
