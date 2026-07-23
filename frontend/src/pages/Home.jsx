@@ -8,6 +8,7 @@ import KeywordScanner from '../components/KeywordScanner'
 import RewritePanel from '../components/RewritePanel'
 import HistoryDrawer from '../components/HistoryDrawer'
 import CompareTab from '../components/CompareTab'
+import WeakSpotPanel from '../components/WeakSpotPanel'
 
 export default function Home() {
   const [tab, setTab] = useState('analyze')
@@ -269,6 +270,8 @@ export default function Home() {
               <SectionCard title="Experience" section={result.experience} />
               <SectionCard title="Education" section={result.education} />
             </div>
+
+            <WeakSpotPanel result={result} />
 
             <RewritePanel
               jd={jd}
