@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/v1/:path*",
-      "destination": "https://resumelens-api.onrender.com/v1/:path*"
+      "destination": "https://resumelens-api-9d9c.onrender.com/v1/:path*"
     }
   ]
 }
