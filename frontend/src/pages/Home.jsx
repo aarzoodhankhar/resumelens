@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, FileText, Zap, Clock } from 'lucide-react'
-import { matchResume, extractResumeText } from '../services/api'
+import { Upload, FileText, Zap, Clock, Link, Loader } from 'lucide-react'
+import { matchResume, extractResumeText, fetchJdFromUrl } from '../services/api'
 import ScoreCircle from '../components/ScoreCircle'
 import SectionCard from '../components/SectionCard'
 import KeywordScanner from '../components/KeywordScanner'
@@ -20,6 +20,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // URL fetch state
+  const [showUrlInput, setShowUrlInput] = useState(false)
+  const [jdUrl, setJdUrl] = useState('')
+  const [fetchingUrl, setFetchingUrl] = useState(false)
+  const [fetchUrlError, setFetchUrlError] = useState('')
+
   const onDrop = useCallback(async (files) => {
     if (files[0]) {
       setResume(files[0])
@@ -35,6 +41,23 @@ export default function Home() {
     accept: { 'application/pdf': ['.pdf'] },
     maxFiles: 1,
   })
+
+  async function handleFetchUrl() {
+    if (!jdUrl.trim()) return
+    setFetchingUrl(true)
+    setFetchUrlError('')
+    try {
+      const text = await fetchJdFromUrl(jdUrl.trim())
+      setJd(text)
+      setShowUrlInput(false)
+      setJdUrl('')
+    } catch (err) {
+      const detail = err.response?.data?.detail
+      setFetchUrlError(detail || 'Could not fetch that URL. Try pasting the JD manually.')
+    } finally {
+      setFetchingUrl(false)
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -117,13 +140,51 @@ export default function Home() {
         {/* Analyze Tab */}
         {tab === 'analyze' && (
           <form onSubmit={handleSubmit} className="space-y-6">
-            <textarea
-              value={jd}
-              onChange={(e) => setJd(e.target.value)}
-              placeholder="Paste the job description here..."
-              rows={8}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:border-purple-500"
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-gray-400">Job Description</label>
+                <button
+                  type="button"
+                  onClick={() => { setShowUrlInput((v) => !v); setFetchUrlError('') }}
+                  className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  <Link size={12} />
+                  {showUrlInput ? 'Cancel' : 'Fetch from URL'}
+                </button>
+              </div>
+
+              {showUrlInput && (
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={jdUrl}
+                    onChange={(e) => setJdUrl(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleFetchUrl())}
+                    placeholder="https://jobs.example.com/software-engineer"
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleFetchUrl}
+                    disabled={fetchingUrl || !jdUrl.trim()}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    {fetchingUrl ? <Loader size={14} className="animate-spin" /> : <Zap size={14} />}
+                    {fetchingUrl ? 'Fetching...' : 'Fetch'}
+                  </button>
+                </div>
+              )}
+              {fetchUrlError && <p className="text-xs text-red-400">{fetchUrlError}</p>}
+
+              <textarea
+                value={jd}
+                onChange={(e) => setJd(e.target.value)}
+                placeholder="Paste the job description here, or fetch it from a URL above..."
+                rows={8}
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl p-4 text-white placeholder-gray-500 resize-none focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"

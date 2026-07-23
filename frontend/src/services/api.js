@@ -20,3 +20,10 @@ export async function extractResumeText(resumeFile) {
   })
   return res.data.text
 }
+
+export async function fetchJdFromUrl(url) {
+  const form = new FormData()
+  form.append('url', url)
+  const res = await axios.post('/v1/fetch-jd', form)
+  return res.data.text
+}

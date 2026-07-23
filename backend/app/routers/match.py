@@ -5,6 +5,8 @@ from app.services.history import save_result, get_history, get_entry, delete_ent
 from app.models.schemas import MatchResponse, RewriteResponse, HistoryEntry, ReanalyzeRequest, ReanalyzeResponse, ScoreDelta, CompareResult, CompareResponse
 from typing import List
 import asyncio
+import httpx
+from bs4 import BeautifulSoup
 
 router = APIRouter()
 
@@ -16,6 +18,31 @@ async def extract_text(resume: UploadFile = File(...)):
     file_bytes = await resume.read()
     text = extract_text_from_pdf(file_bytes)
     return {"text": text}
+
+
+@router.post("/fetch-jd")
+async def fetch_jd(url: str = Form(...)):
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid URL.")
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp.raise_for_status()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=408, detail="Request timed out. Try pasting the JD manually.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch URL: {str(e)}")
+
+    soup = BeautifulSoup(resp.text, "lxml")
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+        tag.decompose()
+    text = soup.get_text(separator="\n")
+    # Collapse blank lines
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    clean = "\n".join(lines)
+    if len(clean) < 100:
+        raise HTTPException(status_code=422, detail="Could not extract enough text from that page. Try pasting the JD manually.")
+    return {"text": clean[:8000]}
 
 
 @router.post("/match", response_model=MatchResponse)
