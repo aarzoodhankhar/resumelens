@@ -9,6 +9,7 @@ import RewritePanel from '../components/RewritePanel'
 import HistoryDrawer from '../components/HistoryDrawer'
 import CompareTab from '../components/CompareTab'
 import WeakSpotPanel from '../components/WeakSpotPanel'
+import AnalyzingOverlay from '../components/AnalyzingOverlay'
 
 export default function Home() {
   const [tab, setTab] = useState('analyze')
@@ -219,10 +220,13 @@ export default function Home() {
         {tab === 'compare' && <CompareTab resume={resume} />}
 
         {error && (
-          <div className="mt-6 p-4 bg-red-950 border border-red-700 rounded-xl text-red-300">
+          <div className="mt-6 p-4 bg-red-950 border border-red-700 rounded-xl text-red-300 text-sm">
             {error}
           </div>
         )}
+
+        {/* Loading skeleton */}
+        {tab === 'analyze' && loading && <AnalyzingOverlay llm={useOpenAI ? 'OpenAI' : 'Groq'} />}
 
         {/* Results — only for analyze tab */}
         {tab === 'analyze' && result && (
@@ -238,7 +242,7 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-around mb-6">
+              <div className="flex flex-wrap justify-around gap-4 mb-6">
                 <ScoreCircle score={result.overall_score} label="Overall" />
                 <ScoreCircle score={result.skills.score} label="Skills" />
                 <ScoreCircle score={result.experience.score} label="Experience" />
