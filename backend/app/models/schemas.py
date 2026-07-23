@@ -18,7 +18,7 @@ class SectionScore(BaseModel):
 class KeywordResult(BaseModel):
     keyword: str
     present: bool
-    frequency: int  # how many times it appears in resume
+    frequency: int
 
 
 class MatchResponse(BaseModel):
@@ -45,6 +45,24 @@ class RewriteResponse(BaseModel):
     explanation: str
     llm_used: str
     latency_ms: float
+
+
+class ReanalyzeRequest(BaseModel):
+    resume_text: str
+    job_description: str
+    rewrites: List[str]
+    use_openai: bool = False
+
+
+class ScoreDelta(BaseModel):
+    before: int
+    after: int
+    delta: int
+
+
+class ReanalyzeResponse(BaseModel):
+    result: MatchResponse
+    delta: ScoreDelta
 
 
 class HistoryEntry(BaseModel):

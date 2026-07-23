@@ -1,11 +1,20 @@
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Body
 from app.services.pdf_parser import extract_text_from_pdf
 from app.services.matcher import analyze_match, rewrite_bullet
 from app.services.history import save_result, get_history, get_entry, delete_entry
-from app.models.schemas import MatchResponse, RewriteResponse, HistoryEntry
+from app.models.schemas import MatchResponse, RewriteResponse, HistoryEntry, ReanalyzeRequest, ReanalyzeResponse, ScoreDelta
 from typing import List
 
 router = APIRouter()
+
+
+@router.post("/extract")
+async def extract_text(resume: UploadFile = File(...)):
+    if resume.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF resumes are supported.")
+    file_bytes = await resume.read()
+    text = extract_text_from_pdf(file_bytes)
+    return {"text": text}
 
 
 @router.post("/match", response_model=MatchResponse)
@@ -42,6 +51,18 @@ async def rewrite(
     if not bullet.strip():
         raise HTTPException(status_code=400, detail="Bullet text is required.")
     return await rewrite_bullet(bullet, job_description, use_openai)
+
+
+@router.post("/reanalyze", response_model=ReanalyzeResponse)
+async def reanalyze(req: ReanalyzeRequest):
+    # Inject rewrites into resume text by appending them
+    enhanced_text = req.resume_text + "\n\nIMPROVED BULLETS:\n" + "\n".join(f"- {b}" for b in req.rewrites)
+    new_result = await analyze_match(enhanced_text, req.job_description, req.use_openai)
+    # before score comes from client, we just return the new result + delta
+    return ReanalyzeResponse(
+        result=new_result,
+        delta=ScoreDelta(before=0, after=new_result.overall_score, delta=0),
+    )
 
 
 @router.get("/history", response_model=List[HistoryEntry])

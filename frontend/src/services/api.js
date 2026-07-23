@@ -11,3 +11,12 @@ export async function matchResume(resumeFile, jobDescription, useOpenAI = false)
   })
   return res.data
 }
+
+export async function extractResumeText(resumeFile) {
+  const form = new FormData()
+  form.append('resume', resumeFile)
+  const res = await axios.post('/v1/extract', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data.text
+}

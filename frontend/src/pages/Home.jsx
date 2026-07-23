@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Upload, FileText, Zap, Clock } from 'lucide-react'
-import { matchResume } from '../services/api'
+import { matchResume, extractResumeText } from '../services/api'
 import ScoreCircle from '../components/ScoreCircle'
 import SectionCard from '../components/SectionCard'
 import KeywordScanner from '../components/KeywordScanner'
@@ -10,14 +10,22 @@ import HistoryDrawer from '../components/HistoryDrawer'
 
 export default function Home() {
   const [resume, setResume] = useState(null)
+  const [resumeText, setResumeText] = useState('')
   const [jd, setJd] = useState('')
   const [useOpenAI, setUseOpenAI] = useState(false)
   const [result, setResult] = useState(null)
+  const [originalScore, setOriginalScore] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const onDrop = useCallback((files) => {
-    if (files[0]) setResume(files[0])
+  const onDrop = useCallback(async (files) => {
+    if (files[0]) {
+      setResume(files[0])
+      try {
+        const text = await extractResumeText(files[0])
+        setResumeText(text)
+      } catch {}
+    }
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -35,6 +43,7 @@ export default function Home() {
     try {
       const data = await matchResume(resume, jd, useOpenAI)
       setResult(data)
+      setOriginalScore(data.overall_score)
     } catch (err) {
       const detail = err.response?.data?.detail
       const msg = Array.isArray(detail)
@@ -48,6 +57,7 @@ export default function Home() {
 
   function handleHistoryLoad(entry) {
     setResult(entry)
+    setOriginalScore(entry.overall_score)
     window.scrollTo({ top: document.getElementById('results')?.offsetTop, behavior: 'smooth' })
   }
 
@@ -58,7 +68,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-start justify-between mb-10">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Resume Job Matcher</h1>
+            <h1 className="text-4xl font-bold mb-2">ResumeLens</h1>
             <p className="text-gray-400">AI-powered match analysis — powered by Groq (Llama 3.3 70B)</p>
           </div>
           <HistoryDrawer onLoad={handleHistoryLoad} />
@@ -77,6 +87,7 @@ export default function Home() {
               <div className="flex items-center justify-center gap-3 text-green-400">
                 <FileText size={24} />
                 <span className="font-medium">{resume.name}</span>
+                {resumeText && <span className="text-xs text-gray-500">({resumeText.length} chars extracted)</span>}
               </div>
             ) : (
               <div className="space-y-2">
@@ -184,8 +195,15 @@ export default function Home() {
               <SectionCard title="Education" section={result.education} />
             </div>
 
-            {/* Resume Rewriter */}
-            <RewritePanel jd={jd} />
+            {/* Resume Rewriter with score loop */}
+            <RewritePanel
+              jd={jd}
+              resumeText={resumeText}
+              originalScore={originalScore}
+              onReanalyzed={(newResult) => {
+                setResult(newResult)
+              }}
+            />
 
           </div>
         )}
