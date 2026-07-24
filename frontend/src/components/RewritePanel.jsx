@@ -77,7 +77,7 @@ export default function RewritePanel({ jd, resumeText, originalScore, onReanalyz
       <textarea
         value={bullet}
         onChange={(e) => setBullet(e.target.value)}
-        placeholder="e.g. Worked with Kubernetes on SAP BTP cloud-native infrastructure..."
+        placeholder="Paste a bullet point from your resume..."
         rows={3}
         className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-purple-500"
       />
